@@ -17,6 +17,12 @@ class TelegramAlerter:
             
         e = self.config.emoji
         
+        # Optional: Add custom emoji tags if they are numeric (Telegram premium emoji ID)
+        def pe(emoji_val: str) -> str:
+            if emoji_val.isdigit():
+                return f'<tg-emoji emoji-id="{emoji_val}">⭐</tg-emoji>'
+            return emoji_val
+            
         # Determine main emoji and text based on new status
         if event.new_status == HostStatus.UP:
             status_emoji = pe(e.success)
@@ -27,12 +33,6 @@ class TelegramAlerter:
         else:
             status_emoji = pe(e.error)
             status_text = "НЕДОСТУПЕН"
-            
-        # Optional: Add custom emoji tags if they are numeric (Telegram premium emoji ID)
-        def pe(emoji_val: str) -> str:
-            if emoji_val.isdigit():
-                return f'<tg-emoji emoji-id="{emoji_val}">⭐</tg-emoji>'
-            return emoji_val
             
         title_emoji = pe(e.notification)
         
