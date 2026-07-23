@@ -1,0 +1,42 @@
+x-common: &common
+  ulimits:
+    nofile:
+      soft: 1048576
+      hard: 1048576
+  restart: unless-stopped
+  networks:
+    - vless-monitor-network
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 100m
+      max-file: "5"
+
+services:
+  monitor:
+    build: .
+    container_name: vless-host-monitor
+    hostname: vless-host-monitor
+    init: true
+    stop_grace_period: 15s
+    <<: [*common, *logging]
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - vless-monitor-data:/data
+    environment:
+      - CONFIG_PATH=/app/config.json
+      - TZ=Europe/Moscow
+
+networks:
+  vless-monitor-network:
+    name: vless-monitor-network
+    driver: bridge
+    external: false
+
+volumes:
+  vless-monitor-data:
+    name: vless-monitor-data
+    driver: local
+    external: false

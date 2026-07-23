@@ -1,0 +1,33 @@
+{
+  "subscription_url": "https://sub.example.com/token",
+  "check_interval_sec": 60,
+  "subscription_refresh_every_n_cycles": 10,
+  "xray_core_path": "/usr/local/bin/xray",
+  "socks_base_port": 10001,
+  "probe_timeout_sec": 10,
+  "probe_targets": [
+    {"label": "cloudflare", "url": "https://cloudflare.com/cdn-cgi/trace"},
+    {"label": "google204", "url": "https://www.google.com/generate_204"}
+  ],
+  "filters": {
+    "name_contains": ["Уник"],
+    "protocol_type": null
+  },
+  "alert_threshold_down": 2,
+  "alert_threshold_degraded": 2,
+  "telegram": {
+    "bot_token": "YOUR_BOT_TOKEN",
+    "chat_id": "-1000000000000",
+    "topic_id": null,
+    "emoji": {
+      "notification": "🔔",
+      "success": "✅",
+      "error": "❌",
+      "stats": "📊",
+      "time": "⏱",
+      "link": "🔗",
+      "info": "ℹ️"
+    }
+  },
+  "state_path": "/data/state.json"
+}
