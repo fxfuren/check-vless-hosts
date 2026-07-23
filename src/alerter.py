@@ -6,6 +6,7 @@ from .logger import logger
 from .config import TelegramConfig
 from .state import StateEvent, HostStatus
 from .prober import ProbeResult
+from .vless_parser import parse_vless_uri
 
 class TelegramAlerter:
     def __init__(self, config: Optional[TelegramConfig]):
@@ -36,8 +37,12 @@ class TelegramAlerter:
             
         title_emoji = pe(e.notification)
         
+        parsed = parse_vless_uri(event.raw_uri)
+        host_address = parsed.host if parsed else "Unknown"
+        
         msg = f"{title_emoji} <b>{status_emoji} Хост {status_text}</b>\n\n"
         msg += f"{pe(e.info)} <b>Имя:</b> <code>{html.escape(event.host_name)}</code>\n"
+        msg += f"{pe(e.link)} <b>Адрес:</b> <code>{html.escape(host_address)}</code>\n"
         
         msg += f"\n{pe(e.stats)} <b>Результаты проверок:</b>\n"
         for r in event.results:
@@ -47,9 +52,6 @@ class TelegramAlerter:
             else:
                 msg += f"  {pe(e.error)} {html.escape(r.target_label)}: FAIL ({html.escape(r.error or 'Unknown')})\n"
                 
-        # To bypass generic URL formatting in Telegram, wrap in code
-        msg += f"\n{pe(e.link)} <b>URI:</b>\n<pre><code class=\"language-vless\">{html.escape(event.raw_uri)}</code></pre>"
-        
         return msg
 
     async def send_event(self, event: StateEvent):
