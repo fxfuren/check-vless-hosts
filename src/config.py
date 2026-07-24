@@ -38,7 +38,7 @@ class AppConfig:
     subscription_refresh_every_n_cycles: int = 10
     xray_core_path: str = "/usr/bin/xray"
     socks_base_port: int = 10001
-    probe_timeout_sec: int = 10
+    probe_timeout_sec: int = 15
     probe_targets: List[ProbeTarget] = field(default_factory=list)
     filters: FiltersConfig = field(default_factory=FiltersConfig)
     alert_threshold_down: int = 2
@@ -80,7 +80,7 @@ def load_config(path: str) -> AppConfig:
         subscription_refresh_every_n_cycles=data.get('subscription_refresh_every_n_cycles', 10),
         xray_core_path=data.get('xray_core_path', '/usr/bin/xray'),
         socks_base_port=data.get('socks_base_port', 10001),
-        probe_timeout_sec=data.get('probe_timeout_sec', 10),
+        probe_timeout_sec=data.get('probe_timeout_sec', 15),
         probe_targets=probe_targets,
         filters=filters,
         alert_threshold_down=data.get('alert_threshold_down', 2),

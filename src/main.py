@@ -80,6 +80,14 @@ class MonitorDaemon:
         
         for event in events:
             logger.info(f"State changed for {event.host_name}: {event.old_status} -> {event.new_status}")
+            
+            # Логируем точную причину падения
+            if event.new_status != HostStatus.UP:
+                for r in event.results:
+                    if not r.success:
+                        reason = r.error if r.error else f"HTTP Status {r.status_code}"
+                        logger.warning(f"Host {event.host_name} target '{r.target_label}' failed: {reason}")
+            
             await self.alerter.send_event(event)
 
     async def run(self):
