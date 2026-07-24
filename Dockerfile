@@ -1,12 +1,13 @@
 FROM python:3.12-slim
 
+# Install latest stable xray-core
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget unzip ca-certificates \
+    wget unzip ca-certificates jq \
     && rm -rf /var/lib/apt/lists/*
 
-# Install xray-core
-ARG XRAY_VERSION=26.7.11
-RUN wget -q "https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/Xray-linux-64.zip" -O /tmp/xray.zip \
+RUN LATEST_TAG=$(wget -qO- https://api.github.com/repos/XTLS/Xray-core/releases/latest | jq -r .tag_name) \
+    && echo "Downloading Xray $LATEST_TAG" \
+    && wget -q "https://github.com/XTLS/Xray-core/releases/download/${LATEST_TAG}/Xray-linux-64.zip" -O /tmp/xray.zip \
     && unzip /tmp/xray.zip -d /usr/local/bin/ xray \
     && chmod +x /usr/local/bin/xray \
     && rm /tmp/xray.zip
