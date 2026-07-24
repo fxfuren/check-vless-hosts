@@ -7,7 +7,7 @@ from .config import load_config
 from .subscription import get_filtered_hosts
 from .xray_manager import XrayManager
 from .prober import probe_all_hosts
-from .state import StateManager
+from .state import StateManager, HostStatus
 from .alerter import TelegramAlerter
 from .vless_parser import VlessHost
 
