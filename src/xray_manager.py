@@ -143,9 +143,20 @@ class XrayManager:
         try:
             self.process = await asyncio.create_subprocess_exec(
                 self.xray_path, "-c", self.config_path,
-                stdout=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.PIPE
             )
+            
+            # Start background task to drain and log stderr
+            async def drain_stderr():
+                if self.process and self.process.stderr:
+                    while True:
+                        line = await self.process.stderr.readline()
+                        if not line:
+                            break
+                        logger.warning(f"[xray-core] {line.decode().strip()}")
+                        
+            asyncio.create_task(drain_stderr())
             
             # Wait a bit to see if it crashes immediately
             await asyncio.sleep(1)
