@@ -20,6 +20,7 @@ class ProbeResult:
 class HostProbeResult:
     host_name: str
     raw_uri: str
+    host_address: str
     results: List[ProbeResult]
     
     @property
@@ -60,6 +61,7 @@ async def probe_host(host: VlessHost, socks_port: int, targets: List[ProbeTarget
     return HostProbeResult(
         host_name=host.name,
         raw_uri=host.raw_uri,
+        host_address=host.host,
         results=list(results)
     )
 

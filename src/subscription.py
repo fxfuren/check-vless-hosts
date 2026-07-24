@@ -45,8 +45,8 @@ def parse_json_outbounds(data: Any) -> List[VlessHost]:
                     host = VlessHost(
                         raw_uri=f"json://{tag}",
                         uuid="",
-                        host="",
-                        port=443,
+                        host=out.get("settings", {}).get("vnext", [{}])[0].get("address", "Unknown"),
+                        port=out.get("settings", {}).get("vnext", [{}])[0].get("port", 443),
                         name=tag,
                         params={},
                         json_outbound=out
@@ -63,8 +63,8 @@ def parse_json_outbounds(data: Any) -> List[VlessHost]:
             host = VlessHost(
                 raw_uri=f"json://{tag}",
                 uuid="",
-                host="",
-                port=443,
+                host=out.get("settings", {}).get("vnext", [{}])[0].get("address", "Unknown"),
+                port=out.get("settings", {}).get("vnext", [{}])[0].get("port", 443),
                 name=tag,
                 params={},
                 json_outbound=out

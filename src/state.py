@@ -15,6 +15,7 @@ class HostStatus(str, Enum):
 class HostState:
     name: str
     raw_uri: str
+    host_address: str = "Unknown"
     consecutive_down: int = 0
     consecutive_degraded: int = 0
     last_alerted_status: HostStatus = HostStatus.UP
@@ -24,6 +25,7 @@ class HostState:
 class StateEvent:
     host_name: str
     raw_uri: str
+    host_address: str
     old_status: HostStatus
     new_status: HostStatus
     results: List[ProbeResult]
@@ -48,6 +50,7 @@ class StateManager:
                 self.hosts[name] = HostState(
                     name=state_dict['name'],
                     raw_uri=state_dict['raw_uri'],
+                    host_address=state_dict.get('host_address', "Unknown"),
                     consecutive_down=state_dict.get('consecutive_down', 0),
                     consecutive_degraded=state_dict.get('consecutive_degraded', 0),
                     last_alerted_status=HostStatus(state_dict.get('last_alerted_status', HostStatus.UP.value)),
@@ -76,10 +79,11 @@ class StateManager:
         for result in probe_results:
             name = result.host_name
             if name not in self.hosts:
-                self.hosts[name] = HostState(name=name, raw_uri=result.raw_uri)
+                self.hosts[name] = HostState(name=name, raw_uri=result.raw_uri, host_address=result.host_address)
                 
             state = self.hosts[name]
             state.raw_uri = result.raw_uri
+            state.host_address = result.host_address
             state.last_results = [asdict(r) for r in result.results]
             
             if result.is_all_success:
@@ -89,6 +93,7 @@ class StateManager:
                     events.append(StateEvent(
                         host_name=name,
                         raw_uri=state.raw_uri,
+                        host_address=state.host_address,
                         old_status=state.last_alerted_status,
                         new_status=HostStatus.UP,
                         results=result.results
@@ -102,6 +107,7 @@ class StateManager:
                     events.append(StateEvent(
                         host_name=name,
                         raw_uri=state.raw_uri,
+                        host_address=state.host_address,
                         old_status=state.last_alerted_status,
                         new_status=HostStatus.DOWN,
                         results=result.results
@@ -115,6 +121,7 @@ class StateManager:
                     events.append(StateEvent(
                         host_name=name,
                         raw_uri=state.raw_uri,
+                        host_address=state.host_address,
                         old_status=state.last_alerted_status,
                         new_status=HostStatus.DEGRADED,
                         results=result.results
