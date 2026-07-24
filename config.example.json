@@ -6,8 +6,8 @@
   "socks_base_port": 10001,
   "probe_timeout_sec": 15,
   "probe_targets": [
-    {"label": "cloudflare_trace", "url": "https://cloudflare.com/cdn-cgi/trace"},
-    {"label": "google_204", "url": "https://www.google.com/generate_204"}
+    {"label": "cloudflare_204", "url": "http://cp.cloudflare.com/generate_204"},
+    {"label": "vivo_204", "url": "http://wifi.vivo.com.cn/generate_204"}
   ],
   "filters": {
     "name_contains": ["Уник"],

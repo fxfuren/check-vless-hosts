@@ -130,6 +130,9 @@ def generate_xray_config(hosts: List[VlessHost], base_port: int) -> Dict[str, An
         "log": {"loglevel": "warning"},
         "inbounds": inbounds,
         "outbounds": outbounds,
+        "dns": {
+            "queryStrategy": "UseIPv4"
+        },
         "routing": {
             "domainStrategy": "AsIs",
             "rules": rules
