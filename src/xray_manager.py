@@ -26,85 +26,99 @@ def generate_xray_config(hosts: List[VlessHost], base_port: int) -> Dict[str, An
         })
         
         # Outbound
-        stream_settings: Dict[str, Any] = {"network": host.params.get("type", "tcp")}
-        
-        # security
-        security = host.params.get("security", "none")
-        if security != "none":
-            stream_settings["security"] = security
-            if security == "tls" or security == "reality":
-                tls_settings = {}
-                sni = host.params.get("sni", host.host)
-                if sni:
-                    tls_settings["serverName"] = sni
-                
-                fp = host.params.get("fp")
-                if fp:
-                    tls_settings["fingerprint"] = fp
+        if host.json_outbound:
+            # If we received a ready JSON outbound, use it directly!
+            # We just need to overwrite its tag so routing works.
+            outbound = dict(host.json_outbound)
+            outbound["tag"] = out_tag
+            outbounds.append(outbound)
+        else:
+            stream_settings: Dict[str, Any] = {"network": host.params.get("type", "tcp")}
+            
+            # security
+            security = host.params.get("security", "none")
+            if security != "none":
+                stream_settings["security"] = security
+                if security == "tls" or security == "reality":
+                    tls_settings = {}
+                    sni = host.params.get("sni", host.host)
+                    if sni:
+                        tls_settings["serverName"] = sni
                     
-                alpn = host.params.get("alpn")
-                if alpn:
-                    tls_settings["alpn"] = alpn.split(',')
+                    fp = host.params.get("fp")
+                    if fp:
+                        tls_settings["fingerprint"] = fp
+                        
+                    alpn = host.params.get("alpn")
+                    if alpn:
+                        tls_settings["alpn"] = alpn.split(',')
 
-                pbk = host.params.get("pbk")
-                if pbk:
-                    tls_settings["publicKey"] = pbk
+                    pbk = host.params.get("pbk")
+                    if pbk:
+                        tls_settings["publicKey"] = pbk
 
-                sid = host.params.get("sid")
-                if sid:
-                    tls_settings["shortId"] = sid
-                
-                if security == "reality":
-                    stream_settings["realitySettings"] = tls_settings
-                else:
-                    stream_settings["tlsSettings"] = tls_settings
-        
-        # network specific settings
-        net_type = stream_settings["network"]
-        if net_type == "xhttp":
-            xhttp_settings = {"path": host.params.get("path", "/")}
-            if "host" in host.params:
-                xhttp_settings["host"] = host.params.get("host")
-            stream_settings["xhttpSettings"] = xhttp_settings
-        elif net_type == "ws":
-            stream_settings["wsSettings"] = {
-                "path": host.params.get("path", "/"),
-                "headers": {"Host": host.params.get("host", host.params.get("sni", host.host))}
-            }
-        elif net_type == "grpc":
-            stream_settings["grpcSettings"] = {
-                "serviceName": host.params.get("serviceName", ""),
-                "multiMode": host.params.get("mode", "") == "multi"
-            }
-        elif net_type == "tcp" and host.params.get("headerType") == "http":
-            stream_settings["tcpSettings"] = {
-                "header": {
-                    "type": "http",
-                    "request": {
-                        "path": [host.params.get("path", "/")],
-                        "headers": {"Host": [host.params.get("host", host.host)]}
+                    sid = host.params.get("sid")
+                    if sid:
+                        tls_settings["shortId"] = sid
+                        
+                    spx = host.params.get("spx")
+                    if spx is not None:
+                        tls_settings["spiderX"] = spx
+                    
+                    if security == "reality":
+                        stream_settings["realitySettings"] = tls_settings
+                    else:
+                        stream_settings["tlsSettings"] = tls_settings
+            
+            # network specific settings
+            net_type = stream_settings["network"]
+            if net_type == "xhttp":
+                xhttp_settings = {"path": host.params.get("path", "/")}
+                if "host" in host.params:
+                    xhttp_settings["host"] = host.params.get("host")
+                # Ensure host is set
+                host_header = host.params.get("host", host.params.get("sni", host.host))
+                xhttp_settings["host"] = host_header
+                stream_settings["xhttpSettings"] = xhttp_settings
+            elif net_type == "ws":
+                stream_settings["wsSettings"] = {
+                    "path": host.params.get("path", "/"),
+                    "headers": {"Host": host.params.get("host", host.params.get("sni", host.host))}
+                }
+            elif net_type == "grpc":
+                stream_settings["grpcSettings"] = {
+                    "serviceName": host.params.get("serviceName", ""),
+                    "multiMode": host.params.get("mode", "") == "multi"
+                }
+            elif net_type == "tcp" and host.params.get("headerType") == "http":
+                stream_settings["tcpSettings"] = {
+                    "header": {
+                        "type": "http",
+                        "request": {
+                            "path": [host.params.get("path", "/")],
+                            "headers": {"Host": [host.params.get("host", host.host)]}
+                        }
                     }
                 }
-            }
+                
+            user_settings = {"id": host.uuid, "encryption": host.params.get("encryption", "none")}
+            flow = host.params.get("flow")
+            if flow:
+                user_settings["flow"] = flow
+                
+            outbounds.append({
+                "tag": out_tag,
+                "protocol": "vless",
+                "settings": {
+                    "vnext": [{
+                        "address": host.host,
+                        "port": host.port,
+                        "users": [user_settings]
+                    }]
+                },
+                "streamSettings": stream_settings
+            })
             
-        user_settings = {"id": host.uuid, "encryption": host.params.get("encryption", "none")}
-        flow = host.params.get("flow")
-        if flow:
-            user_settings["flow"] = flow
-            
-        outbounds.append({
-            "tag": out_tag,
-            "protocol": "vless",
-            "settings": {
-                "vnext": [{
-                    "address": host.host,
-                    "port": host.port,
-                    "users": [user_settings]
-                }]
-            },
-            "streamSettings": stream_settings
-        })
-        
         # Rule
         rules.append({
             "type": "field",

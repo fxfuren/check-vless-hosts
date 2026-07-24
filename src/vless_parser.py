@@ -1,6 +1,6 @@
 import urllib.parse
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 @dataclass
 class VlessHost:
@@ -10,6 +10,7 @@ class VlessHost:
     port: int
     name: str
     params: Dict[str, str]
+    json_outbound: Optional[Dict[str, Any]] = None
 
 def parse_vless_uri(uri: str) -> Optional[VlessHost]:
     try:

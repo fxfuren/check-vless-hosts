@@ -1,6 +1,7 @@
 import base64
 import aiohttp
-from typing import List, Optional
+import json
+from typing import List, Optional, Any
 from .logger import logger
 from .config import FiltersConfig
 from .vless_parser import VlessHost, parse_vless_uri
@@ -15,32 +16,85 @@ async def fetch_subscription(url: str, timeout: int = 30) -> Optional[str]:
         logger.error(f"Failed to fetch subscription: {e}")
         return None
 
-def decode_subscription(content: str) -> List[str]:
+def decode_base64_str(content: str) -> str:
     try:
-        # Base64 strings might not have correct padding
         padding = len(content) % 4
         if padding:
             content += '=' * (4 - padding)
-        decoded_bytes = base64.b64decode(content)
-        decoded_str = decoded_bytes.decode('utf-8')
-        return [line.strip() for line in decoded_str.splitlines() if line.strip()]
-    except Exception as e:
-        logger.error(f"Failed to decode subscription: {e}")
-        # Sometimes subscription is not base64 but just plaintext lines
-        return [line.strip() for line in content.splitlines() if line.strip()]
+        return base64.b64decode(content).decode('utf-8')
+    except:
+        return content
+
+def parse_json_outbounds(data: Any) -> List[VlessHost]:
+    outbounds = data.get("outbounds", [])
+    hosts = []
+    for out in outbounds:
+        protocol = out.get("protocol", "")
+        # Ignore core outbounds
+        if protocol in ("freedom", "blackhole", "dns"):
+            continue
+            
+        tag = out.get("tag", "Unknown Host")
+        host = VlessHost(
+            raw_uri=f"json://{tag}", # Mock URI
+            uuid="",
+            host="",
+            port=443,
+            name=tag,
+            params={},
+            json_outbound=out
+        )
+        hosts.append(host)
+    return hosts
+
+def parse_subscription_content(content: str) -> List[VlessHost]:
+    # 1. Try parsing directly as JSON
+    try:
+        data = json.loads(content)
+        if "outbounds" in data:
+            return parse_json_outbounds(data)
+    except:
+        pass
+        
+    # 2. Try decoding base64 and then parsing as JSON
+    try:
+        decoded_str = decode_base64_str(content)
+        data = json.loads(decoded_str)
+        if "outbounds" in data:
+            return parse_json_outbounds(data)
+    except:
+        pass
+        
+    # 3. Fallback to parsing line-by-line VLESS URIs
+    lines = decode_base64_str(content).splitlines()
+    hosts = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        parsed = parse_vless_uri(line)
+        if parsed:
+            hosts.append(parsed)
+            
+    return hosts
 
 def filter_hosts(hosts: List[VlessHost], filters: FiltersConfig) -> List[VlessHost]:
     filtered = []
     for host in hosts:
-        # Filter by name
         if filters.name_contains:
             if not any(nc.lower() in host.name.lower() for nc in filters.name_contains):
                 continue
                 
-        # Filter by protocol type
         if filters.protocol_type:
-            ptype = host.params.get("type", "").lower()
-            if ptype != filters.protocol_type.lower():
+            # If it's a JSON outbound, try to extract protocol or network
+            ptype = ""
+            if host.json_outbound:
+                stream = host.json_outbound.get("streamSettings", {})
+                ptype = stream.get("network", "")
+            else:
+                ptype = host.params.get("type", "").lower()
+                
+            if ptype.lower() != filters.protocol_type.lower():
                 continue
                 
         filtered.append(host)
@@ -52,15 +106,9 @@ async def get_filtered_hosts(url: str, filters: FiltersConfig) -> Optional[List[
     if not content:
         return None
         
-    lines = decode_subscription(content)
-    
-    hosts = []
-    for line in lines:
-        parsed = parse_vless_uri(line)
-        if parsed:
-            hosts.append(parsed)
-            
+    hosts = parse_subscription_content(content)
     filtered = filter_hosts(hosts, filters)
+    
     # Sort deterministically so Xray SOCKS port mappings don't shuffle randomly
     filtered.sort(key=lambda h: h.name)
     logger.info(f"Loaded {len(filtered)} hosts from subscription (out of {len(hosts)} total)")
