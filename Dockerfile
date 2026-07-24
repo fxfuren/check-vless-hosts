@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 # Install latest stable xray-core
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget unzip ca-certificates jq \
+    wget unzip ca-certificates jq curl \
     && rm -rf /var/lib/apt/lists/*
 
 RUN LATEST_TAG=$(wget -qO- https://api.github.com/repos/XTLS/Xray-core/releases | jq -r '.[0].tag_name') \
