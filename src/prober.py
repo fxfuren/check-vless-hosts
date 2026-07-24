@@ -35,7 +35,7 @@ class HostProbeResult:
         return not any(r.success for r in self.results) if self.results else True
 
 async def probe_target(socks_port: int, target: ProbeTarget, timeout_sec: float) -> ProbeResult:
-    connector = ProxyConnector.from_url(f"socks5://127.0.0.1:{socks_port}")
+    connector = ProxyConnector.from_url(f"socks5://127.0.0.1:{socks_port}", rdns=True)
     start_time = time.monotonic()
     
     try:

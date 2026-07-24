@@ -62,7 +62,10 @@ def generate_xray_config(hosts: List[VlessHost], base_port: int) -> Dict[str, An
         # network specific settings
         net_type = stream_settings["network"]
         if net_type == "xhttp":
-            stream_settings["xhttpSettings"] = {"path": host.params.get("path", "/")}
+            xhttp_settings = {"path": host.params.get("path", "/")}
+            if "host" in host.params:
+                xhttp_settings["host"] = host.params.get("host")
+            stream_settings["xhttpSettings"] = xhttp_settings
         elif net_type == "ws":
             stream_settings["wsSettings"] = {
                 "path": host.params.get("path", "/"),
@@ -84,6 +87,11 @@ def generate_xray_config(hosts: List[VlessHost], base_port: int) -> Dict[str, An
                 }
             }
             
+        user_settings = {"id": host.uuid, "encryption": host.params.get("encryption", "none")}
+        flow = host.params.get("flow")
+        if flow:
+            user_settings["flow"] = flow
+            
         outbounds.append({
             "tag": out_tag,
             "protocol": "vless",
@@ -91,7 +99,7 @@ def generate_xray_config(hosts: List[VlessHost], base_port: int) -> Dict[str, An
                 "vnext": [{
                     "address": host.host,
                     "port": host.port,
-                    "users": [{"id": host.uuid, "encryption": host.params.get("encryption", "none")}]
+                    "users": [user_settings]
                 }]
             },
             "streamSettings": stream_settings
