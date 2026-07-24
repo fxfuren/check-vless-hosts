@@ -41,7 +41,6 @@ async def probe_target(socks_port: int, target: ProbeTarget, timeout_sec: float)
         # Use curl directly to avoid any aiohttp-socks quirks
         cmd = [
             "curl", "-s", "-w", "%{http_code}", "-o", "/dev/null",
-            "-A", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "-x", f"socks5h://127.0.0.1:{socks_port}",
             "-m", str(int(timeout_sec)),
             target.url
