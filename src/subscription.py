@@ -8,7 +8,8 @@ from .vless_parser import VlessHost, parse_vless_uri
 
 async def fetch_subscription(url: str, timeout: int = 30) -> Optional[str]:
     try:
-        async with aiohttp.ClientSession() as session:
+        headers = {"User-Agent": "Happ/1.0 Xray/1.8.4"}
+        async with aiohttp.ClientSession(headers=headers) as session:
             async with session.get(url, timeout=timeout) as response:
                 response.raise_for_status()
                 return await response.text()
@@ -26,32 +27,59 @@ def decode_base64_str(content: str) -> str:
         return content
 
 def parse_json_outbounds(data: Any) -> List[VlessHost]:
-    outbounds = data.get("outbounds", [])
     hosts = []
-    for out in outbounds:
-        protocol = out.get("protocol", "")
-        # Ignore core outbounds
-        if protocol in ("freedom", "blackhole", "dns"):
-            continue
+    
+    # If it's an array of Xray configs (like Remnawave's Happ template)
+    if isinstance(data, list):
+        for config in data:
+            if isinstance(config, dict) and "outbounds" in config:
+                remarks = config.get("remarks", "")
+                for out in config["outbounds"]:
+                    protocol = out.get("protocol", "")
+                    if protocol in ("freedom", "blackhole", "dns"):
+                        continue
+                        
+                    # Use remarks if present, otherwise tag
+                    tag = remarks if remarks else out.get("tag", "Unknown Host")
+                    
+                    host = VlessHost(
+                        raw_uri=f"json://{tag}",
+                        uuid="",
+                        host="",
+                        port=443,
+                        name=tag,
+                        params={},
+                        json_outbound=out
+                    )
+                    hosts.append(host)
+    else:
+        outbounds = data.get("outbounds", [])
+        for out in outbounds:
+            protocol = out.get("protocol", "")
+            if protocol in ("freedom", "blackhole", "dns"):
+                continue
+                
+            tag = out.get("tag", "Unknown Host")
+            host = VlessHost(
+                raw_uri=f"json://{tag}",
+                uuid="",
+                host="",
+                port=443,
+                name=tag,
+                params={},
+                json_outbound=out
+            )
+            hosts.append(host)
             
-        tag = out.get("tag", "Unknown Host")
-        host = VlessHost(
-            raw_uri=f"json://{tag}", # Mock URI
-            uuid="",
-            host="",
-            port=443,
-            name=tag,
-            params={},
-            json_outbound=out
-        )
-        hosts.append(host)
     return hosts
 
 def parse_subscription_content(content: str) -> List[VlessHost]:
     # 1. Try parsing directly as JSON
     try:
         data = json.loads(content)
-        if "outbounds" in data:
+        if isinstance(data, dict) and "outbounds" in data:
+            return parse_json_outbounds(data)
+        elif isinstance(data, list):
             return parse_json_outbounds(data)
     except:
         pass
