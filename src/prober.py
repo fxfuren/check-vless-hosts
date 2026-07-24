@@ -1,7 +1,6 @@
 import asyncio
 import time
-import aiohttp
-from aiohttp_socks import ProxyConnector
+import json
 from dataclasses import dataclass
 from typing import Optional, List, Dict
 from .vless_parser import VlessHost
@@ -36,30 +35,60 @@ class HostProbeResult:
         return not any(r.success for r in self.results) if self.results else True
 
 async def probe_target(socks_port: int, target: ProbeTarget, timeout_sec: float) -> ProbeResult:
-    connector = ProxyConnector.from_url(f"socks5://127.0.0.1:{socks_port}", rdns=True)
     start_time = time.monotonic()
     
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1"
-    }
-    
     try:
-        async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
-            async with session.get(target.url, timeout=aiohttp.ClientTimeout(total=timeout_sec)) as resp:
-                latency = (time.monotonic() - start_time) * 1000
-                success = resp.status < 400
-                return ProbeResult(
-                    target_label=target.label,
-                    success=success,
-                    status_code=resp.status,
-                    latency_ms=latency
-                )
-    except asyncio.TimeoutError:
-        return ProbeResult(target_label=target.label, success=False, error="Timeout")
+        # Use curl directly to avoid any aiohttp-socks quirks
+        cmd = [
+            "curl", "-s", "-w", "%{http_code}", "-o", "/dev/null",
+            "-A", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "-x", f"socks5h://127.0.0.1:{socks_port}",
+            "-m", str(int(timeout_sec)),
+            target.url
+        ]
+        
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        stdout_bytes, stderr_bytes = await proc.communicate()
+        latency = (time.monotonic() - start_time) * 1000
+        
+        if proc.returncode == 0:
+            status_code_str = stdout_bytes.decode().strip()
+            status_code = int(status_code_str) if status_code_str.isdigit() else 0
+            
+            # Curl succeeded, return the HTTP status code
+            # Note: For generate_204, status is usually 204.
+            # Cloudflare trace is 200.
+            success = 200 <= status_code < 400
+            return ProbeResult(
+                target_label=target.label,
+                success=success,
+                status_code=status_code,
+                latency_ms=latency
+            )
+        else:
+            # Curl failed (e.g. timeout, connection reset)
+            error_msg = stderr_bytes.decode().strip()
+            if not error_msg:
+                if proc.returncode == 28:
+                    error_msg = "Timeout"
+                elif proc.returncode == 7:
+                    error_msg = "Failed to connect to proxy or host"
+                elif proc.returncode == 52:
+                    error_msg = "Empty reply from server"
+                else:
+                    error_msg = f"Curl error code {proc.returncode}"
+                    
+            return ProbeResult(
+                target_label=target.label,
+                success=False,
+                error=error_msg
+            )
+            
     except Exception as e:
         error_msg = str(e)
         if not error_msg:
@@ -74,7 +103,6 @@ async def probe_host_target_with_delay(delay: float, socks_port: int, target: Pr
 async def probe_host(host: VlessHost, socks_port: int, targets: List[ProbeTarget], timeout_sec: float, base_delay: float = 0.0) -> HostProbeResult:
     tasks = []
     for i, target in enumerate(targets):
-        # Stagger each target by 0.5s
         tasks.append(probe_host_target_with_delay(base_delay + i * 0.5, socks_port, target, timeout_sec))
         
     results = await asyncio.gather(*tasks)
@@ -89,7 +117,6 @@ async def probe_all_hosts(hosts: List[VlessHost], base_port: int, targets: List[
     tasks = []
     for i, host in enumerate(hosts):
         socks_port = base_port + i
-        # Stagger each host by 1.0s to avoid bursting
         base_delay = i * 1.0
         tasks.append(probe_host(host, socks_port, targets, timeout_sec, base_delay))
         
