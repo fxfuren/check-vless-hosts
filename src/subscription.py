@@ -61,5 +61,7 @@ async def get_filtered_hosts(url: str, filters: FiltersConfig) -> Optional[List[
             hosts.append(parsed)
             
     filtered = filter_hosts(hosts, filters)
+    # Sort deterministically so Xray SOCKS port mappings don't shuffle randomly
+    filtered.sort(key=lambda h: h.name)
     logger.info(f"Loaded {len(filtered)} hosts from subscription (out of {len(hosts)} total)")
     return filtered

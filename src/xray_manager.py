@@ -120,6 +120,9 @@ class XrayManager:
         self.process: Optional[asyncio.subprocess.Process] = None
         self.config_path: Optional[str] = None
         
+    def is_running(self) -> bool:
+        return self.process is not None and self.process.returncode is None
+        
     async def start(self, hosts: List[VlessHost], base_port: int) -> bool:
         config_obj = generate_xray_config(hosts, base_port)
         

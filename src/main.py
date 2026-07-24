@@ -40,11 +40,11 @@ class MonitorDaemon:
             return True
             
         # check if changed
-        # A simple check: compare raw URIs
-        old_uris = set(h.raw_uri for h in self.current_hosts)
-        new_uris = set(h.raw_uri for h in hosts)
+        # Compare raw URIs in exact order
+        old_uris = [h.raw_uri for h in self.current_hosts]
+        new_uris = [h.raw_uri for h in hosts]
         
-        if old_uris != new_uris or self.xray_manager.process is None:
+        if old_uris != new_uris or not self.xray_manager.is_running():
             logger.info("Hosts changed or xray not running, generating new xray config and restarting...")
             self.current_hosts = hosts
             success = await self.xray_manager.restart(self.current_hosts, self.config.socks_base_port)
@@ -63,7 +63,7 @@ class MonitorDaemon:
             
         self.cycle_count += 1
 
-        if not self.current_hosts or self.xray_manager.process is None:
+        if not self.current_hosts or not self.xray_manager.is_running():
             logger.info("No hosts to monitor or xray-core not running. Skipping probe.")
             return
 
