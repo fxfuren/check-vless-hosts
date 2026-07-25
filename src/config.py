@@ -46,6 +46,7 @@ class AppConfig:
     alert_threshold_up: int = 3
     telegram: Optional[TelegramConfig] = None
     state_path: str = "/data/state.json"
+    telegram_proxy_url: Optional[str] = None
 
 def load_config(path: str) -> AppConfig:
     if not os.path.exists(path):
@@ -88,7 +89,8 @@ def load_config(path: str) -> AppConfig:
         alert_threshold_degraded=data.get('alert_threshold_degraded', 2),
         alert_threshold_up=data.get('alert_threshold_up', 3),
         telegram=telegram,
-        state_path=data.get('state_path', '/data/state.json')
+        state_path=data.get('state_path', '/data/state.json'),
+        telegram_proxy_url=data.get('telegram_proxy_url', None),
     )
     
     logger.info("Config loaded successfully", extra={"extra_data": {"config_path": path}})

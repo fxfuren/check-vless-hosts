@@ -20,7 +20,7 @@ class MonitorDaemon:
             self.config.alert_threshold_degraded,
             self.config.alert_threshold_up,
         )
-        self.alerter = TelegramAlerter(self.config.telegram)
+        self.alerter = TelegramAlerter(self.config.telegram, self.config.telegram_proxy_url)
         self.xray_manager = XrayManager(self.config.xray_core_path)
         
         self.running = False

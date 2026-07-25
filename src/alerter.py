@@ -2,6 +2,7 @@ import aiohttp
 import urllib.parse
 import html
 from typing import List, Optional
+from aiohttp_socks import ProxyConnector
 from .logger import logger
 from .config import TelegramConfig
 from .state import StateEvent, HostStatus
@@ -9,9 +10,16 @@ from .prober import ProbeResult
 from .vless_parser import parse_vless_uri
 
 class TelegramAlerter:
-    def __init__(self, config: Optional[TelegramConfig]):
+    def __init__(self, config: Optional[TelegramConfig], proxy_url: Optional[str] = None):
         self.config = config
-        
+        self.proxy_url = proxy_url
+
+    def _make_session(self) -> aiohttp.ClientSession:
+        if self.proxy_url:
+            connector = ProxyConnector.from_url(self.proxy_url)
+            return aiohttp.ClientSession(connector=connector)
+        return aiohttp.ClientSession()
+
     def _format_event(self, event: StateEvent) -> str:
         if not self.config:
             return ""
@@ -69,7 +77,7 @@ class TelegramAlerter:
             payload["message_thread_id"] = self.config.topic_id
             
         try:
-            async with aiohttp.ClientSession() as session:
+            async with self._make_session() as session:
                 async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                     if resp.status >= 400:
                         error_text = await resp.text()
@@ -96,7 +104,7 @@ class TelegramAlerter:
             payload["message_thread_id"] = self.config.topic_id
             
         try:
-            async with aiohttp.ClientSession() as session:
+            async with self._make_session() as session:
                 await session.post(url, json=payload, timeout=10)
         except Exception as e:
             logger.error(f"Failed to send Telegram startup notification: {e}")

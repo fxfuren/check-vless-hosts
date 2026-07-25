@@ -30,5 +30,6 @@
       "info": "ℹ️"
     }
   },
-  "state_path": "/data/state.json"
+  "state_path": "/data/state.json",
+  "telegram_proxy_url": "socks5://127.0.0.1:10001"
 }
