@@ -18,6 +18,7 @@ class HostState:
     host_address: str = "Unknown"
     consecutive_down: int = 0
     consecutive_degraded: int = 0
+    consecutive_up: int = 0
     last_alerted_status: HostStatus = HostStatus.UP
     last_results: List[Dict] = field(default_factory=list)
 
@@ -31,10 +32,11 @@ class StateEvent:
     results: List[ProbeResult]
 
 class StateManager:
-    def __init__(self, state_path: str, threshold_down: int, threshold_degraded: int):
+    def __init__(self, state_path: str, threshold_down: int, threshold_degraded: int, threshold_up: int):
         self.state_path = state_path
         self.threshold_down = threshold_down
         self.threshold_degraded = threshold_degraded
+        self.threshold_up = threshold_up
         self.hosts: Dict[str, HostState] = {}
         self.load()
         
@@ -53,6 +55,7 @@ class StateManager:
                     host_address=state_dict.get('host_address', "Unknown"),
                     consecutive_down=state_dict.get('consecutive_down', 0),
                     consecutive_degraded=state_dict.get('consecutive_degraded', 0),
+                    consecutive_up=state_dict.get('consecutive_up', 0),
                     last_alerted_status=HostStatus(state_dict.get('last_alerted_status', HostStatus.UP.value)),
                     last_results=state_dict.get('last_results', [])
                 )
@@ -89,7 +92,8 @@ class StateManager:
             if result.is_all_success:
                 state.consecutive_down = 0
                 state.consecutive_degraded = 0
-                if state.last_alerted_status != HostStatus.UP:
+                state.consecutive_up += 1
+                if state.consecutive_up >= self.threshold_up and state.last_alerted_status != HostStatus.UP:
                     events.append(StateEvent(
                         host_name=name,
                         raw_uri=state.raw_uri,
@@ -101,6 +105,7 @@ class StateManager:
                     state.last_alerted_status = HostStatus.UP
                     
             elif result.is_all_failed:
+                state.consecutive_up = 0
                 state.consecutive_down += 1
                 state.consecutive_degraded = 0
                 if state.consecutive_down >= self.threshold_down and state.last_alerted_status != HostStatus.DOWN:
@@ -115,6 +120,7 @@ class StateManager:
                     state.last_alerted_status = HostStatus.DOWN
                     
             else: # partial success (degraded)
+                state.consecutive_up = 0
                 state.consecutive_degraded += 1
                 state.consecutive_down = 0
                 if state.consecutive_degraded >= self.threshold_degraded and state.last_alerted_status != HostStatus.DEGRADED:

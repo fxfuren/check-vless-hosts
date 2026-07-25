@@ -17,7 +17,8 @@ class MonitorDaemon:
         self.state_manager = StateManager(
             self.config.state_path, 
             self.config.alert_threshold_down, 
-            self.config.alert_threshold_degraded
+            self.config.alert_threshold_degraded,
+            self.config.alert_threshold_up,
         )
         self.alerter = TelegramAlerter(self.config.telegram)
         self.xray_manager = XrayManager(self.config.xray_core_path)

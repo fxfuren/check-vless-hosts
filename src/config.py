@@ -43,6 +43,7 @@ class AppConfig:
     filters: FiltersConfig = field(default_factory=FiltersConfig)
     alert_threshold_down: int = 2
     alert_threshold_degraded: int = 2
+    alert_threshold_up: int = 3
     telegram: Optional[TelegramConfig] = None
     state_path: str = "/data/state.json"
 
@@ -85,6 +86,7 @@ def load_config(path: str) -> AppConfig:
         filters=filters,
         alert_threshold_down=data.get('alert_threshold_down', 2),
         alert_threshold_degraded=data.get('alert_threshold_degraded', 2),
+        alert_threshold_up=data.get('alert_threshold_up', 3),
         telegram=telegram,
         state_path=data.get('state_path', '/data/state.json')
     )
